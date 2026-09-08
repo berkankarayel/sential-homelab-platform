@@ -1,0 +1,9 @@
+# Build output
+/bin/
+/pulse
+
+# Env
+.env
+
+# OS/editor
+.DS_Store
