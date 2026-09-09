@@ -39,3 +39,4 @@ type Collector interface {
 	// Interval is how often the scheduler should call Collect.
 	Interval() time.Duration
 }
+

@@ -1,0 +1,50 @@
+GUN 1 - OZET
+=============
+
+PROJE KARARI
+- Go ile ogrenmeye baslamak icin "basit degil ama anlamli" bir proje secildi
+- Fikir: homelab izleme platformu (health check + Proxmox + log izleme birlesimi)
+- Isim: yerelde "Pulse", GitHub'da "Sentinel" (repo: sentinel-homelab-platform, public)
+
+MIMARI KARARLAR
+- "Collector" deseni: farkli veri kaynaklari (healthcheck, proxmox, logwatch)
+  ayni interface'i (Name/Collect/Interval) uygulayacak
+- Katmanli klasor yapisi: cmd (giris noktasi), internal (ozel/ic mantik),
+  collectors (Collector'i uygulayan somut parcalar)
+- internal/ klasorunun anlami netlestirildi: gorunurluk degil, "baska Go
+  projeleri bunu import edemez" kurali. Public repo'da herkes kodu gorebilir,
+  sadece disaridan bagimlilik olarak kullanilamiyor
+
+KURULUM VE ISKELET
+- Makinede Go kurulu degildi, resmi go.dev'den Go 1.27.1 kuruldu (~/.local/go,
+  sudo sifre sorunu yuzunden home dizinine kuruldu)
+- go.mod ile proje modulu olusturuldu
+- Dosya iskeleti kuruldu: collector interface tam yazildi, scheduler/storage/
+  api/healthcheck stub (TODO) olarak birakildi
+- Dockerfile + docker-compose.yml (app + postgres) yazildi
+
+OGRENME DENEMESI
+- Skeleti kendi yazmak icin internal/collector/collector.go sifirlandi
+- Adim adim yeniden yazilmaya baslandi: package, import, Status tipi
+- Tempo cok hizli oldu, yarina (1-2 saat Go syntax) birakildi
+
+DOCKER TESTI
+- docker compose up --build calistirildi, postgres + pulse container ayaga kalkti
+- pulse container tek satir yazdirip kapandi (Exited 0) - beklenen davranis,
+  cunku main() henuz surekli calisan bir yapi (HTTP server) baslatmiyor
+- Bu, Docker/Dockerfile/compose zincirinin dogru calistigini kanitladi
+
+GITHUB
+- VS Code "Publish to GitHub" ile repo olusturuldu, ilk commit atildi
+
+HAZIR ARACLAR TARTISMASI
+- Ayni isi yapan hazir araclar var: Uptime Kuma, Prometheus+Grafana+Alertmanager,
+  Zabbix, Loki/ELK. Kafka bir izleme araci degil, mesaj kuyrugu - karisikligi
+  giderildi
+- Karar: gercek homelab izlemesi icin hazir araclar kullanilacak, Pulse ise
+  Go/backend/DevOps ogrenmek icin paralel, uzun vadeli bir proje olarak devam
+  edecek
+
+YARIN
+- 1-2 saat Go syntax/mantik calismasi
+- internal/collector/collector.go'yu bastan, anlayarak yeniden yazmak

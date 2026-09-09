@@ -1,41 +1,84 @@
-// Package healthcheck implements collector.Collector for a simple HTTP or
-// TCP reachability check against a target service.
+// Package healthcheck implements collector.Collector for a simple HTTP
+// reachability check against a target service.
 //
 // TODO:
-//   - Fields: name, target (URL for HTTP, host:port for TCP), timeout
-//   - Collect(): HTTP GET (or net.Dial for TCP) using ctx, map the outcome
-//     to collector.StatusUp / collector.StatusDown, put latency/status code
-//     into Result.Data
-//   - New(name, target string, interval time.Duration) *HealthCheck
+//   - TCP port check variant (net.Dial) for non-HTTP targets
+//   - Configurable retry before flagging a target down
 package healthcheck
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"pulse/internal/collector"
 )
 
-// HealthCheck pings a single HTTP or TCP target on an interval.
+// HealthCheck pings a single HTTP target on an interval.
 type HealthCheck struct {
-	// TODO: name, target string
-	// TODO: interval     time.Duration
-	// TODO: httpClient   *http.Client
+	name       string
+	target     string
+	interval   time.Duration
+	httpClient *http.Client
 }
 
-// New creates a HealthCheck collector for the given target.
+// New creates a HealthCheck collector for the given target URL. name
+// identifies this instance (e.g. "healthcheck:jenkins"); target is a full
+// URL (e.g. "http://jenkins.local:8080/login").
 func New(name, target string, interval time.Duration) *HealthCheck {
-	panic("TODO: implement")
+	return &HealthCheck{
+		name:     name,
+		target:   target,
+		interval: interval,
+		httpClient: &http.Client{
+			Timeout: 5 * time.Second,
+		},
+	}
 }
 
 func (h *HealthCheck) Name() string {
-	panic("TODO: implement")
+	return h.name
 }
 
 func (h *HealthCheck) Interval() time.Duration {
-	panic("TODO: implement")
+	return h.interval
 }
 
+// Collect issues a single HTTP GET against the target. Any 2xx/3xx response
+// is StatusUp; anything else (bad status code, timeout, connection refused)
+// is StatusDown.
 func (h *HealthCheck) Collect(ctx context.Context) (collector.Result, error) {
-	panic("TODO: implement")
+	result := collector.Result{
+		CollectorName: h.name,
+		Timestamp:     time.Now(),
+		Data:          map[string]any{"target": h.target},
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, h.target, nil)
+	if err != nil {
+		result.Status = collector.StatusUnknown
+		result.Err = err
+		return result, err
+	}
+
+	start := time.Now()
+	resp, err := h.httpClient.Do(req)
+	latency := time.Since(start)
+	result.Data["latency_ms"] = latency.Milliseconds()
+
+	if err != nil {
+		result.Status = collector.StatusDown
+		result.Err = err
+		return result, nil
+	}
+	defer resp.Body.Close()
+
+	result.Data["status_code"] = resp.StatusCode
+	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
+		result.Status = collector.StatusUp
+	} else {
+		result.Status = collector.StatusDown
+	}
+
+	return result, nil
 }
