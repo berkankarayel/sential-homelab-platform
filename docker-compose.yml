@@ -9,14 +9,24 @@ services:
       - "5432:5432"
     volumes:
       - pulse-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pulse -d pulse"]
+      interval: 2s
+      timeout: 5s
+      retries: 10
 
   pulse:
     build: .
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     environment:
       PULSE_DB_DSN: postgres://pulse:pulse@postgres:5432/pulse?sslmode=disable
       PULSE_ADDR: ":8080"
+      # Comma-separated "name=url" pairs to check more than one target;
+      # falls back to a single self-check against PULSE_HEALTHCHECK_TARGET
+      # when unset.
+      # PULSE_HEALTHCHECK_TARGETS: "jenkins=http://jenkins.local:8080/login,grafana=http://grafana.local:3000"
     ports:
       - "8080:8080"
 
